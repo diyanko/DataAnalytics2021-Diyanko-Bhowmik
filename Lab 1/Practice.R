@@ -8,6 +8,7 @@ str(Troy_Weather_Week)
 Troy_Weather_Week[1,] #First row
 Troy_Weather_Week[,1] #First column
 Troy_Weather_Week[,'snow']
+Troy_Weather_Week[1:5,c("snow")]
 subset(Troy_Weather_Week,subset = snow == TRUE)
 sorted.snow = order(Troy_Weather_Week['snow'])
 sorted.snow
@@ -25,3 +26,4 @@ df
 write.csv(df,file='sample_df.csv')
 df2 = read.csv('sample_df.csv')
 df2
+
