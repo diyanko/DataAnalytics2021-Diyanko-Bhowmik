@@ -26,4 +26,3 @@ df
 write.csv(df,file='sample_df.csv')
 df2 = read.csv('sample_df.csv')
 df2
-
