@@ -1,1 +1,0 @@
-wget --load-cookies D:\Users\Diyanko Bhowmik\Desktop\Data Analytics\DataAnalytics2021-Diyanko-Bhowmik\Project\code_snippets\.urs_cookies --save-cookies D:\Users\Diyanko Bhowmik\Desktop\Data Analytics\DataAnalytics2021-Diyanko-Bhowmik\Project\.urs_cookies --auth-no-challenge=on --keep-session-cookies --user=Diyanko --ask-password --content-disposition -i url.txt
