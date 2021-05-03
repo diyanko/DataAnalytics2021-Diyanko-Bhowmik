@@ -7,7 +7,7 @@ output: html_document
 
 ## Importing Packages
 
-```{r}
+```{r, warning=FALSE}
 library(dplyr)
 library(ggplot2)
 library(usmap)
