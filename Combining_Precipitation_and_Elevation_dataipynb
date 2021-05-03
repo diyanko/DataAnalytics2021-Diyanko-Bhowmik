@@ -1,0 +1,607 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 5,
+  "metadata": {
+    "kernelspec": {
+      "display_name": "Python 3",
+      "language": "python",
+      "name": "python3"
+    },
+    "language_info": {
+      "codemirror_mode": {
+        "name": "ipython",
+        "version": 3
+      },
+      "file_extension": ".py",
+      "mimetype": "text/x-python",
+      "name": "python",
+      "nbconvert_exporter": "python",
+      "pygments_lexer": "ipython3",
+      "version": "3.9.0"
+    },
+    "colab": {
+      "name": "Combining Precipitation and Elevation from Raster.ipynb",
+      "provenance": [],
+      "collapsed_sections": [],
+      "toc_visible": true,
+      "include_colab_link": true
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/diyanko/DataAnalytics2021-Diyanko-Bhowmik/blob/main/Combining_Precipitation_and_Elevation_dataipynb\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "dense-brazil"
+      },
+      "source": [
+        "# Combining Precipitation and Elevation from Raster\n",
+        "\n",
+        "In this notebook, I will create datasets needed for my analysis. This will involve combining all monthly datasets together, combining all daily datasets together and creating an elevation data file."
+      ],
+      "id": "dense-brazil"
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "theoretical-inspector"
+      },
+      "source": [
+        "## Import libraries\n",
+        "\n",
+        "We need `ftplib` for managing FTP connections and `rasterio` for working with rasters."
+      ],
+      "id": "theoretical-inspector"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "conservative-slave",
+        "outputId": "27f6ad77-a1c8-473e-bf90-96a2fa8d1eec"
+      },
+      "source": [
+        "import os\n",
+        "import ssl\n",
+        "import json\n",
+        "\n",
+        "import numpy as np\n",
+        "import pandas as pd\n",
+        "\n",
+        "!pip install rasterio\n",
+        "!pip install geopandas\n",
+        "\n",
+        "import rasterio\n",
+        "import geopandas as gpd\n",
+        "from ftplib import FTP_TLS"
+      ],
+      "id": "conservative-slave",
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "Collecting rasterio\n",
+            "\u001b[?25l  Downloading https://files.pythonhosted.org/packages/e1/bf/d3c5e7df3828db144a6797269bf3aec31db96c20f13e75b93179eb059955/rasterio-1.2.3-cp37-cp37m-manylinux1_x86_64.whl (19.1MB)\n",
+            "\u001b[K     |████████████████████████████████| 19.1MB 1.5MB/s \n",
+            "\u001b[?25hCollecting snuggs>=1.4.1\n",
+            "  Downloading https://files.pythonhosted.org/packages/cc/0e/d27d6e806d6c0d1a2cfdc5d1f088e42339a0a54a09c3343f7f81ec8947ea/snuggs-1.4.7-py3-none-any.whl\n",
+            "Collecting cligj>=0.5\n",
+            "  Downloading https://files.pythonhosted.org/packages/42/1e/947eadf10d6804bf276eb8a038bd5307996dceaaa41cfd21b7a15ec62f5d/cligj-0.7.1-py3-none-any.whl\n",
+            "Collecting click-plugins\n",
+            "  Downloading https://files.pythonhosted.org/packages/e9/da/824b92d9942f4e472702488857914bdd50f73021efea15b4cad9aca8ecef/click_plugins-1.1.1-py2.py3-none-any.whl\n",
+            "Requirement already satisfied: certifi in /usr/local/lib/python3.7/dist-packages (from rasterio) (2020.12.5)\n",
+            "Collecting affine\n",
+            "  Downloading https://files.pythonhosted.org/packages/ac/a6/1a39a1ede71210e3ddaf623982b06ecfc5c5c03741ae659073159184cd3e/affine-2.3.0-py2.py3-none-any.whl\n",
+            "Requirement already satisfied: attrs in /usr/local/lib/python3.7/dist-packages (from rasterio) (20.3.0)\n",
+            "Requirement already satisfied: click<8,>=4.0 in /usr/local/lib/python3.7/dist-packages (from rasterio) (7.1.2)\n",
+            "Requirement already satisfied: numpy in /usr/local/lib/python3.7/dist-packages (from rasterio) (1.19.5)\n",
+            "Requirement already satisfied: pyparsing>=2.1.6 in /usr/local/lib/python3.7/dist-packages (from snuggs>=1.4.1->rasterio) (2.4.7)\n",
+            "Installing collected packages: snuggs, cligj, click-plugins, affine, rasterio\n",
+            "Successfully installed affine-2.3.0 click-plugins-1.1.1 cligj-0.7.1 rasterio-1.2.3 snuggs-1.4.7\n",
+            "Collecting geopandas\n",
+            "\u001b[?25l  Downloading https://files.pythonhosted.org/packages/d7/bf/e9cefb69d39155d122b6ddca53893b61535fa6ffdad70bf5ef708977f53f/geopandas-0.9.0-py2.py3-none-any.whl (994kB)\n",
+            "\u001b[K     |████████████████████████████████| 1.0MB 9.0MB/s \n",
+            "\u001b[?25hRequirement already satisfied: pandas>=0.24.0 in /usr/local/lib/python3.7/dist-packages (from geopandas) (1.1.5)\n",
+            "Requirement already satisfied: shapely>=1.6 in /usr/local/lib/python3.7/dist-packages (from geopandas) (1.7.1)\n",
+            "Collecting pyproj>=2.2.0\n",
+            "\u001b[?25l  Downloading https://files.pythonhosted.org/packages/b1/72/d52e9ca81caef056062d71991b0e9b1d16af042245627c5d0e4916a36c4f/pyproj-3.0.1-cp37-cp37m-manylinux2010_x86_64.whl (6.5MB)\n",
+            "\u001b[K     |████████████████████████████████| 6.5MB 27.1MB/s \n",
+            "\u001b[?25hCollecting fiona>=1.8\n",
+            "\u001b[?25l  Downloading https://files.pythonhosted.org/packages/ea/2a/404b22883298a3efe9c6ef8d67acbf2c38443fa366ee9cd4cd34e17626ea/Fiona-1.8.19-cp37-cp37m-manylinux1_x86_64.whl (15.3MB)\n",
+            "\u001b[K     |████████████████████████████████| 15.3MB 332kB/s \n",
+            "\u001b[?25hRequirement already satisfied: python-dateutil>=2.7.3 in /usr/local/lib/python3.7/dist-packages (from pandas>=0.24.0->geopandas) (2.8.1)\n",
+            "Requirement already satisfied: numpy>=1.15.4 in /usr/local/lib/python3.7/dist-packages (from pandas>=0.24.0->geopandas) (1.19.5)\n",
+            "Requirement already satisfied: pytz>=2017.2 in /usr/local/lib/python3.7/dist-packages (from pandas>=0.24.0->geopandas) (2018.9)\n",
+            "Requirement already satisfied: certifi in /usr/local/lib/python3.7/dist-packages (from pyproj>=2.2.0->geopandas) (2020.12.5)\n",
+            "Requirement already satisfied: attrs>=17 in /usr/local/lib/python3.7/dist-packages (from fiona>=1.8->geopandas) (20.3.0)\n",
+            "Requirement already satisfied: cligj>=0.5 in /usr/local/lib/python3.7/dist-packages (from fiona>=1.8->geopandas) (0.7.1)\n",
+            "Requirement already satisfied: six>=1.7 in /usr/local/lib/python3.7/dist-packages (from fiona>=1.8->geopandas) (1.15.0)\n",
+            "Requirement already satisfied: click<8,>=4.0 in /usr/local/lib/python3.7/dist-packages (from fiona>=1.8->geopandas) (7.1.2)\n",
+            "Requirement already satisfied: click-plugins>=1.0 in /usr/local/lib/python3.7/dist-packages (from fiona>=1.8->geopandas) (1.1.1)\n",
+            "Collecting munch\n",
+            "  Downloading https://files.pythonhosted.org/packages/cc/ab/85d8da5c9a45e072301beb37ad7f833cd344e04c817d97e0cc75681d248f/munch-2.5.0-py2.py3-none-any.whl\n",
+            "Installing collected packages: pyproj, munch, fiona, geopandas\n",
+            "Successfully installed fiona-1.8.19 geopandas-0.9.0 munch-2.5.0 pyproj-3.0.1\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "SivSoSENPdK4",
+        "outputId": "9f194f5c-f278-4482-d37a-c235382e8957"
+      },
+      "source": [
+        "from google.colab import drive\n",
+        "drive.mount('/content/drive')"
+      ],
+      "id": "SivSoSENPdK4",
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "Mounted at /content/drive\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "criminal-freeze"
+      },
+      "source": [
+        "## Load centers\n",
+        "\n",
+        "We load in the centers file so we can use the coordinates for extracting data."
+      ],
+      "id": "criminal-freeze"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 204
+        },
+        "id": "broken-attitude",
+        "outputId": "5416994e-f083-4ac3-8f6c-82e8c09af425"
+      },
+      "source": [
+        "centers_data = pd.read_csv(\"/content/drive/MyDrive/DA/all_processed_data.csv\")\n",
+        "centers_data.head()"
+      ],
+      "id": "broken-attitude",
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/html": [
+              "<div>\n",
+              "<style scoped>\n",
+              "    .dataframe tbody tr th:only-of-type {\n",
+              "        vertical-align: middle;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe tbody tr th {\n",
+              "        vertical-align: top;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe thead th {\n",
+              "        text-align: right;\n",
+              "    }\n",
+              "</style>\n",
+              "<table border=\"1\" class=\"dataframe\">\n",
+              "  <thead>\n",
+              "    <tr style=\"text-align: right;\">\n",
+              "      <th></th>\n",
+              "      <th>ID</th>\n",
+              "      <th>NAME</th>\n",
+              "      <th>CITY</th>\n",
+              "      <th>STATE</th>\n",
+              "      <th>ZIP</th>\n",
+              "      <th>LATITUDE</th>\n",
+              "      <th>LONGITUDE</th>\n",
+              "    </tr>\n",
+              "  </thead>\n",
+              "  <tbody>\n",
+              "    <tr>\n",
+              "      <th>0</th>\n",
+              "      <td>12142728</td>\n",
+              "      <td>T J HEALTH COLUMBIA</td>\n",
+              "      <td>COLUMBIA</td>\n",
+              "      <td>KY</td>\n",
+              "      <td>42728</td>\n",
+              "      <td>37.096642</td>\n",
+              "      <td>-85.294546</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>1</th>\n",
+              "      <td>1042539</td>\n",
+              "      <td>CASEY COUNTY HOSPITAL</td>\n",
+              "      <td>LIBERTY</td>\n",
+              "      <td>KY</td>\n",
+              "      <td>42539</td>\n",
+              "      <td>37.317717</td>\n",
+              "      <td>-84.933172</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>2</th>\n",
+              "      <td>5240336</td>\n",
+              "      <td>MARCUM AND WALLACE MEMORIAL HOSPITAL</td>\n",
+              "      <td>IRVINE</td>\n",
+              "      <td>KY</td>\n",
+              "      <td>40336</td>\n",
+              "      <td>37.706197</td>\n",
+              "      <td>-83.977277</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>3</th>\n",
+              "      <td>3641653</td>\n",
+              "      <td>HIGHLANDS REGIONAL MEDICAL CENTER</td>\n",
+              "      <td>PRESTONSBURG</td>\n",
+              "      <td>KY</td>\n",
+              "      <td>41653</td>\n",
+              "      <td>37.729010</td>\n",
+              "      <td>-82.767320</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>4</th>\n",
+              "      <td>7140207</td>\n",
+              "      <td>NORTON WOMEN'S AND KOSAIR CHILDREN'S HOSPITAL</td>\n",
+              "      <td>LOUISVILLE</td>\n",
+              "      <td>KY</td>\n",
+              "      <td>40207</td>\n",
+              "      <td>38.235330</td>\n",
+              "      <td>-85.632937</td>\n",
+              "    </tr>\n",
+              "  </tbody>\n",
+              "</table>\n",
+              "</div>"
+            ],
+            "text/plain": [
+              "         ID  ...  LONGITUDE\n",
+              "0  12142728  ... -85.294546\n",
+              "1   1042539  ... -84.933172\n",
+              "2   5240336  ... -83.977277\n",
+              "3   3641653  ... -82.767320\n",
+              "4   7140207  ... -85.632937\n",
+              "\n",
+              "[5 rows x 7 columns]"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 3
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "available-copper"
+      },
+      "source": [
+        "I'll extract the coordinates which will be needed for getting the corresponding data values."
+      ],
+      "id": "available-copper"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "ideal-europe"
+      },
+      "source": [
+        "coords = [(x,y) for x, y in zip(centers_data[\"LONGITUDE\"], centers_data[\"LATITUDE\"])]"
+      ],
+      "id": "ideal-europe",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "incident-lancaster"
+      },
+      "source": [
+        "## Load credentials\n",
+        "\n",
+        "Access to data is through an authorized ftp connections, so we need to load in our credentials. I have kept the credentials inside the file **eosdis_credentials.json** as a json format which I read in."
+      ],
+      "id": "incident-lancaster"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 232
+        },
+        "id": "miniature-execution",
+        "outputId": "d8987711-1fd6-4060-f276-367d67440b00"
+      },
+      "source": [
+        "# Open credentials file\n",
+        "credentials_file = open(\"eosdis_credentials.json\")\n",
+        "\n",
+        "# Load credentials\n",
+        "credentials = json.load(credentials_file)\n",
+        "username = credentials[\"username\"]\n",
+        "password = credentials[\"password\"]\n",
+        "  \n",
+        "# Close the file\n",
+        "credentials_file.close()"
+      ],
+      "id": "miniature-execution",
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "error",
+          "ename": "FileNotFoundError",
+          "evalue": "ignored",
+          "traceback": [
+            "\u001b[0;31m---------------------------------------------------------------------------\u001b[0m",
+            "\u001b[0;31mFileNotFoundError\u001b[0m                         Traceback (most recent call last)",
+            "\u001b[0;32m<ipython-input-5-f033d343d2be>\u001b[0m in \u001b[0;36m<module>\u001b[0;34m()\u001b[0m\n\u001b[1;32m      1\u001b[0m \u001b[0;31m# Open credentials file\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m----> 2\u001b[0;31m \u001b[0mcredentials_file\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mopen\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m\"eosdis_credentials.json\"\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m      3\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m      4\u001b[0m \u001b[0;31m# Load credentials\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m      5\u001b[0m \u001b[0mcredentials\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mjson\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mload\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mcredentials_file\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+            "\u001b[0;31mFileNotFoundError\u001b[0m: [Errno 2] No such file or directory: 'eosdis_credentials.json'"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "shared-jungle"
+      },
+      "source": [
+        "## Set up FTP\n",
+        "\n",
+        "We will now set up the FTP connection which we can use to get the data from the server. The set up instructions are taken from [GPM](https://gpm.nasa.gov/data/directory/imerg-final-run-pps-research-gis) download instructions for FTP."
+      ],
+      "id": "shared-jungle"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "prepared-assessment",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 35
+        },
+        "outputId": "ffee31b0-3396-4889-c930-4788ac21513d"
+      },
+      "source": [
+        "ftp_site = \"arthurhouftps.pps.eosdis.nasa.gov\"\n",
+        "FTP_TLS.ssl_version = ssl.PROTOCOL_TLSv1_2\n",
+        "ftps = FTP_TLS()\n",
+        "ftps.connect(ftp_site, 21)\n",
+        "ftps.login(\"diyankobhowmik.db@gmail.com\", \"diyankobhowmik.db@gmail.com\")\n",
+        "ftps.prot_p()"
+      ],
+      "id": "prepared-assessment",
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "application/vnd.google.colaboratory.intrinsic+json": {
+              "type": "string"
+            },
+            "text/plain": [
+              "'200 Protection set to Private'"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 6
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "sexual-castle"
+      },
+      "source": [
+        "## Get data\n",
+        "\n",
+        "We will now use the FTP connection to get the TIF files, extract data for the health centers and create our dataframe."
+      ],
+      "id": "sexual-castle"
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "interracial-retention"
+      },
+      "source": [
+        "### Monthly data download\n",
+        "\n",
+        "The following function enables us to download monthly precipitation data for a given date range for a given set of coordinates."
+      ],
+      "id": "interracial-retention"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "special-natural"
+      },
+      "source": [
+        "def get_monthly_data(coords = [], ids = [], start_year = 2010, end_year = 2020):\n",
+        "    \n",
+        "    # If year is less than 2001, it won't work\n",
+        "    if start_year < 2001:\n",
+        "        print(\"ERROR: Start year must be more than 2000\")\n",
+        "        return\n",
+        "     \n",
+        "    # If year is more than 2020, it won't work\n",
+        "    if end_year > 2020:\n",
+        "        print(\"ERROR: End year must be less than 2021\")\n",
+        "        return\n",
+        "    \n",
+        "    # If end year is less than start year, it won't work\n",
+        "    if end_year < start_year:\n",
+        "        print(\"ERROR: End year must be after start year\")\n",
+        "        return\n",
+        "        \n",
+        "    # Start creating a resultant dataframe\n",
+        "    resultant_data = pd.DataFrame({\"ID\": ids, \"temp\": range(len(coords))})\n",
+        "    \n",
+        "    # For each year\n",
+        "    for year in range(start_year, end_year + 1):\n",
+        "        \n",
+        "        # For each month in the current year\n",
+        "        for month in [\"01\", \"02\", \"03\", \"04\", \"05\", \"06\", \"07\", \"08\", \"09\", \"10\", \"11\", \"12\"]:\n",
+        "        \n",
+        "            # Get the TIF file and save to local temporary file\n",
+        "            f = open(\"temporary_tif.tif\", \"wb\")\n",
+        "            ftps.retrbinary('RETR pub/gpmdata/' + str(year) + '/' + month + '/01/gis/3B-MO-GIS.MS.MRG.3IMERG.' + str(year) + month + '01-S000000-E235959.' + month + '.V06B.tif', f.write)\n",
+        "            f.close()\n",
+        "            \n",
+        "            # Open that file\n",
+        "            src = rasterio.open('temporary_tif.tif')\n",
+        "            \n",
+        "            # Get data from rastor\n",
+        "            resultant_data[\"temp\"] = [x for x in src.sample(coords)]\n",
+        "            resultant_data[month + \"_\" + str(year)] = resultant_data[\"temp\"].apply(lambda x: x[0])\n",
+        "            \n",
+        "            # Scale down by a factor of 1000 (documentation states the values are scaled up)\n",
+        "            resultant_data[month + \"_\" + str(year)] = resultant_data[month + \"_\" + str(year)].div(1000)\n",
+        "            \n",
+        "            # Remove the temporary file\n",
+        "            os.remove(\"temporary_tif.tif\")\n",
+        "            \n",
+        "        # Print when data is loaded for a given year\n",
+        "        print(\"Completed extraction for {}\".format(year))\n",
+        "        \n",
+        "    # Return final dataframe\n",
+        "    return resultant_data.drop([\"temp\"], axis = 1)"
+      ],
+      "id": "special-natural",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "sunset-civilization"
+      },
+      "source": [
+        "I will download the monthly precipitation data for the years 2005 to 2020 and save it."
+      ],
+      "id": "sunset-civilization"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "hollow-mission",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "8fc41455-9853-4f5a-e419-b447d8744c10"
+      },
+      "source": [
+        "prec_for_centers = get_monthly_data(coords, centers_data[\"ID\"], 2005, 2020)\n",
+        "prec_for_centers.to_csv(\"/content/drive/MyDrive/DA/prec_for_centers_monthly.csv\", index = False)"
+      ],
+      "id": "hollow-mission",
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "Completed extraction for 2005\n",
+            "Completed extraction for 2006\n",
+            "Completed extraction for 2007\n",
+            "Completed extraction for 2008\n",
+            "Completed extraction for 2009\n",
+            "Completed extraction for 2010\n",
+            "Completed extraction for 2011\n",
+            "Completed extraction for 2012\n",
+            "Completed extraction for 2013\n",
+            "Completed extraction for 2014\n",
+            "Completed extraction for 2015\n",
+            "Completed extraction for 2016\n",
+            "Completed extraction for 2017\n",
+            "Completed extraction for 2018\n",
+            "Completed extraction for 2019\n",
+            "Completed extraction for 2020\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "governing-torture"
+      },
+      "source": [
+        "### Adding elevation data for monthly data\n",
+        "\n",
+        "Finally, I'll combine the elevation data I got from The **World TIF**, which is taken from [ASTER Global Digital Elevation Map](https://asterweb.jpl.nasa.gov/gdem.asp). The values are in metres."
+      ],
+      "id": "governing-torture"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "proved-wesley"
+      },
+      "source": [
+        "def get_elevation_data(coords, ids, elevation_file):\n",
+        "      \n",
+        "    # Create resultant dataframe\n",
+        "    resultant_data = pd.DataFrame({\"ID\": ids})\n",
+        "    \n",
+        "    # Read the TIF file\n",
+        "    src = rasterio.open(elevation_file)\n",
+        "    \n",
+        "    # Get elevation data\n",
+        "    resultant_data[\"elevation\"] = [x for x in src.sample(coords)]\n",
+        "    resultant_data[\"elevation\"] = resultant_data[\"elevation\"].apply(lambda x: x[0])\n",
+        "        \n",
+        "    # Return resultant data\n",
+        "    return resultant_data"
+      ],
+      "id": "proved-wesley",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "female-fluid"
+      },
+      "source": [
+        "elevation_for_centers = get_elevation_data(coords, centers_data[\"ID\"], \"/content/drive/MyDrive/DA/GDEM-10km-BW.tif\")\n",
+        "elevation_for_centers.to_csv(\"/content/drive/MyDrive/DA/elevation_for_centers.csv\", index = False)"
+      ],
+      "id": "female-fluid",
+      "execution_count": null,
+      "outputs": []
+    }
+  ]
+}
