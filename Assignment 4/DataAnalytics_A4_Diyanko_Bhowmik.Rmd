@@ -1,0 +1,114 @@
+---
+title: "DataAnalytics_A4_Diyanko_Bhowmik"
+author: "Diyanko Bhowmik"
+date: "3/25/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Code
+
+```{r}
+#EDA
+library(readxl)
+library(readr)
+library(ggplot2)
+setwd("D:/Users/Diyanko Bhowmik/Desktop/Data Analytics/Source Files/NYhousing")
+sales =  read_excel("rollingsales_brooklyn.xls",skip = 4)
+data =  read_excel("rollingsales_brooklyn.xls",skip = 4)
+
+summary(data)
+unique(data$NEIGHBORHOOD)
+unique(data$`TAX CLASS AT PRESENT`)
+table(data$LOT)
+table(data$`BUILDING CLASS AT PRESENT`)
+ggplot(data,aes(x=`BUILDING CLASS AT PRESENT`))+geom_bar()
+
+data$simplebuildingclass=gsub('[^A-Z]','',data$`BUILDING CLASS AT PRESENT`)
+ggplot(data,aes(x=`simplebuildingclass`))+geom_bar()
+data$simplebuildingclass=substring(data$`BUILDING CLASS AT PRESENT`,1,1)
+ggplot(data,aes(x=`simplebuildingclass`))+geom_bar()
+data$buildingclassnum=gsub('[^0-9]','',data$`BUILDING CLASS AT PRESENT`)
+ggplot(data,aes(x=`buildingclassnum`))+geom_bar()
+
+YEAR=filter(data,!is.na(data$`YEAR BUILT`))
+ggplot(YEAR,aes(x=`YEAR BUILT`))+geom_histogram(binwidth = 1 )
+
+sort(table(YEAR$`YEAR BUILT`))
+
+YEAR=data[!is.na(data$`YEAR BUILT`) &data$`YEAR BUILT`>0,]
+
+colSums(is.na(data))
+
+summary(data$`EASE-MENT`)
+data$`EASE-MENT`=NULL
+
+sum(data$`LAND SQUARE FEET`==0)
+sum(data$`COMMERCIAL UNITS`==0)
+sum(data$`YEAR BUILT`==0)
+sum(data$`SALE PRICE`==0)
+table(data$`ZIP CODE`)
+as.Date(data$`SALE DATE`)
+class(data$`SALE DATE`)
+ data$saledate=as.Date(data$`SALE DATE`)
+data$saleyear=format(data$saledate,'%Y')
+data$salemonth=format(data$saledate,'%m')
+
+table(data$saleyear)
+
+ggplot(YEAR,aes(x=`YEAR BUILT`))+geom_histogram(binwidth = 1 )
+
+data =  read_excel("rollingsales_brooklyn.xls",skip = 4)
+sort(table(data$NEIGHBORHOOD))
+sort(table(data$`BUILDING CLASS CATEGORY`))
+
+data = data[,c(4,15,17,18,20,21)]
+names(data)=c('taxclassnow','land','builtyear','taxclassbegin',
+            'price','saledate')
+q1 = quantile(data[data$price>0,]$price,probs=c(.05,.95))
+q2 = quantile(data[data$land>0,]$land,probs=c(.05,.95))
+
+data=data[data$builtyear>=1800 & data$price>q1[1] & data$price<q1[2]& data$land>q2[1]& data$land<q2[2],]
+data$saledate=as.Date(data$saledate)
+data$saleyear=format(data$saledate,'%Y')
+data$salemonth=format(data$saledate,'%m')
+
+ggplot(data,aes(builtyear,price))+geom_line()
+ggplot(data,aes(land,price))+geom_line()
+
+max(data$price)
+layout(matrix(c(1,1)))
+boxplot(data$price)
+barplot(data$land)
+sample = floor(0.7*nrow(data))
+
+set.seed(5684)
+data_train = sample(seq_len(nrow(data)),size = sample)
+train = data[data_train,]
+test = data[-data_train,]
+fit = lm(price ~ taxclassnow+taxclassbegin+land+builtyear+saleyear+salemonth,data=train)
+
+residuals(fit)
+anova(fit)
+
+layout(matrix(c(1,2,3,4),2,2))
+plot(fit)
+summary(fit)
+
+RootMeanSqDev = function(m, o)
+{
+  sqrt(mean((m - o)^2))
+}
+
+pre = predict(fit,test[,-5])
+RootMeanSqDev(test[,5],pre)
+qqplot(test[,5],pre)
+test$pre=pre
+ggplot(data=transform())
+ggplot(test,aes(x=land,y=price))+geom_point()+geom_smooth(method="lm") + geom_line(aes(y = pre),size =1)
+```

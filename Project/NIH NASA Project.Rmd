@@ -1,0 +1,320 @@
+---
+title: "NIH NASA Project"
+author: "Diyanko Bhowmik"
+date: "4/22/2021"
+output: html_document
+---
+
+## Importing Packages
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(usmap)
+library(cluster)
+library(fpc)
+library(Dict)
+library(dendextend)
+library(tidyverse)
+```
+
+## Importing Data
+
+```{r}
+prec <- read.csv("D:/Users/Diyanko Bhowmik/Desktop/Data Analytics/DataAnalytics2021-Diyanko-Bhowmik/Project/data/precipitation_data/prec_for_centers_monthly.csv")
+elev <- read.csv("D:/Users/Diyanko Bhowmik/Desktop/Data Analytics/DataAnalytics2021-Diyanko-Bhowmik/Project/data/elevation_data/elevation_for_centers.csv")
+centers <- read.csv("D:/Users/Diyanko Bhowmik/Desktop/Data Analytics/DataAnalytics2021-Diyanko-Bhowmik/Project/data/centers_data/combined_centers_data.csv")
+pop_density <- read.csv("D:/Users/Diyanko Bhowmik/Desktop/Data Analytics/DataAnalytics2021-Diyanko-Bhowmik/Project/data/population_density/population_density.csv")
+```
+
+## EDA
+
+### All Centers
+
+```{r}
+centers_location = data.frame(LONGITUDE = centers$LONGITUDE, LATITUDE = centers$LATITUDE)
+
+centers_map <- usmap_transform(centers_location)
+
+plot_usmap(include = c("KY", "TN")) +
+  geom_point(data = centers_map, aes(x = LONGITUDE.1, y = LATITUDE.1), color = "red") + labs(title = "Health-care centers", subtitle = "All hospitals and urgent health care facilities in Kentucky and Tenessee") + theme(legend.position = "right")
+```
+
+Some important variables
+
+```{r}
+IDs = prec[1]
+IDs = unlist(IDs)
+```
+
+#### Functions
+
+##### Getting precipitation data for a location
+
+```{r}
+get_prec = function(ID){
+  prec_data = prec[prec$ID == ID,-1]
+  temp_matrix = matrix(unlist(prec_data), nrow = 12, byrow = FALSE)
+  return(temp_matrix)
+}
+
+#, dimnames = list(c(1:12),c(2005:2020)
+```
+
+##### Getting Annual precipitation
+
+```{r}
+get_annual_prec = function(ID){
+  temp_matrix = get_prec(ID)
+  return(matrix(colSums(temp_matrix, na.rm = FALSE, dims = 1)))
+}
+```
+
+##### Getting Average Annual precipitation
+
+```{r}
+get_avg_annual_prec = function(ID){
+  return(mean(get_annual_prec(ID)))
+}
+```
+
+##### Getting Average Monthly precipitation
+
+```{r}
+get_monthly_prec = function(ID){
+  temp_matrix = get_prec(ID)
+  return(matrix(rowSums(temp_matrix, na.rm = FALSE, dims = 1))/16)
+}
+```
+
+##### Normalization
+
+```{r}
+normalize <- function(x){
+  return ((x-min(x))/(max(x)-min(x)))
+}
+```
+
+#### Average Annual Precipitation at centers
+
+```{r}
+annual_prec_location = apply(prec[-1], 1, sum)
+
+centers_location = data.frame(LONGITUDE = centers$LONGITUDE, LATITUDE = centers$LATITUDE, annual_prec_location)
+
+centers_map <- usmap_transform(centers_location)
+
+annual_prec_location = normalize(annual_prec_location)
+
+plot_usmap(include = c("KY", "TN")) +
+  geom_point(data = centers_map, aes(x = LONGITUDE.1, y = LATITUDE.1), size = annual_prec_location*5, color = annual_prec_location+5.4, alpha = 0.3) + 
+  labs(title = "Average Annual Precipitation", subtitle = "All hospitals and urgent health care facilities in Kentucky and Tenessee") + 
+  theme(legend.position = "right")
+```
+
+#### Elevation at centers
+
+```{r}
+centers_elevation = data.frame(LONGITUDE = centers$LONGITUDE, LATITUDE = centers$LATITUDE, elev$elevation)
+
+centers_elev <- usmap_transform(centers_elevation)
+
+plot_usmap(include = c("KY", "TN")) +
+  geom_point(data = centers_elev, aes(x = LONGITUDE.1, y = LATITUDE.1, color = elev.elevation), size = 5, alpha = 0.25) + 
+  scale_color_gradientn(colours = terrain.colors(3), breaks = seq(0, 255, by = 25)) +
+  labs(title = "Elevation above sea-level", subtitle = "All hospitals and urgent health care facilities in Kentucky and Tenessee") + 
+  theme(legend.position = "right")
+```
+
+```{r}
+boxplot(centers_location$annual_prec_location*1000, outline=FALSE, xlab = "Average Annual Precipitation (in mm)")
+hist(centers_location$annual_prec_location*1000,seq(27000,34000,500), main = paste("Histogram of precipitation distribution"), xlab = "Average Annual Precipitation (in mm)", ylab = "Number of locations")
+
+```
+
+```{r}
+#get_monthly_prec(IDs[1,1])
+
+#hello = sapply(IDs, get_monthly_prec, ID)
+```
+
+#### Annual rainfall in all centers
+
+```{r}
+yearly_prec_data = data.frame(months = c(1:12))
+
+for (id in 1:503) {
+  yearly_prec_data = cbind(yearly_prec_data, get_monthly_prec(IDs[id]))
+}
+
+yearly_prec_data = yearly_prec_data[,-1]
+
+matplot(yearly_prec_data*1000,  type = c("l"), pch=1, col='black', xlab = "Months", ylab = "Average Monthly Precipitation (in mm)")
+```
+
+#### Year on year change in precipitation
+
+This shows the percentage variation in the average monthly rainfall of the last few years compares to the duration before that.
+
+We can see that there has been a big increase in February and October when we compare the data of 2019-2020 to 2005-2018
+
+```{r}
+n2 = 3
+n1 = 16 - n2
+m1 = 1+(n1*12)
+
+
+get_prec_2 = function(ID,temp_data){
+  prec_data = temp_data[prec$ID == ID,-1]
+  temp_matrix = matrix(unlist(prec_data), nrow = 12, byrow = FALSE)
+  return(temp_matrix)
+}
+
+get_monthly_prec_2 = function(ID,temp_data,number){
+  temp_matrix = get_prec_2(ID,temp_data)
+  return(matrix(rowSums(temp_matrix, na.rm = FALSE, dims = 1))/number)
+}
+
+prec_n1 = prec[,1:m1]
+prec_n2 = prec[,-(2:m1)]
+
+prec_data_n1 = data.frame(months = c(1:12))
+prec_data_n2 = data.frame(months = c(1:12))
+
+
+for (id in 1:503) {
+  prec_data_n1 = cbind(prec_data_n1, get_monthly_prec_2(IDs[id],prec_n1,n1))
+  prec_data_n2 = cbind(prec_data_n2, get_monthly_prec_2(IDs[id],prec_n2,n2))
+}
+
+prec_data_n1 = prec_data_n1[,-1]
+prec_data_n2 = prec_data_n2[,-1]
+
+prec_data_diff = (prec_data_n2 - prec_data_n1)/prec_data_n1*100
+
+matplot(prec_data_diff,  type = c("l"), pch=1, col="black", xlab = "Months", ylab = "% Change in monthly precipitation")
+```
+
+#### Year on year change in precipitation wrt location
+
+This is a spatial representation of the change in precipitation for the two states.
+
+```{r}
+analysis_month = 2
+prec_data_diff_Feb = prec_data_diff[analysis_month,]
+
+prec_data_diff_Feb = unlist(prec_data_diff_Feb)
+
+prec_diff_centers_location = data.frame(LONGITUDE = centers$LONGITUDE, LATITUDE = centers$LATITUDE, prec_data_diff_Feb)
+
+prec_diff_centers_map <- usmap_transform(prec_diff_centers_location)
+
+prec_data_diff_Feb = normalize(prec_data_diff_Feb)
+
+plot_usmap(include = c("KY", "TN")) +
+  geom_point(data = prec_diff_centers_map, aes(x = LONGITUDE.1, y = LATITUDE.1), size = prec_data_diff_Feb*5, magnitude = 1, color = (prec_data_diff_Feb+2.45), alpha = 0.5) + 
+  labs(title = "Change in Precipitation at centers (on February)", subtitle = "All hospitals and urgent health care facilities in Kentucky and Tenessee") + 
+  theme(legend.position = "right")
+```
+
+#### Population Density and Change in precipitation
+
+This compares the spatial representation of the change in precipitation for the two states with that of the population density.
+
+```{r}
+centers_pop_density = select(centers, ID, LATITUDE, LONGITUDE, ZIP)
+
+centers_pop_density$POP_DENSITY = pop_density$Density.Per.Sq.Mile[match(centers_pop_density$ZIP, pop_density$Zip.ZCTA)]
+
+
+pop_location = centers_pop_density$POP_DENSITY
+
+centers_pop_density_modified = data.frame(LONGITUDE = centers$LONGITUDE, LATITUDE = centers$LATITUDE, pop_location)
+
+centers_pop_density_map <- usmap_transform(centers_pop_density_modified)
+
+#pop_location = normalize(pop_location)
+
+plot_usmap(include = c("KY", "TN")) +
+  geom_point(data = centers_pop_density_map, aes(x = LONGITUDE.1, y = LATITUDE.1), size = pop_location/500, color = "red", alpha = 0.2) + geom_point(data = prec_diff_centers_map, aes(x = LONGITUDE.1, y = LATITUDE.1), size = prec_data_diff_Feb*5, magnitude = 1, color = "blue", alpha = 0.2) + 
+  labs(title = "Population Density", subtitle = "All hospitals and urgent health care facilities in Kentucky and Tenessee") + 
+  theme(legend.position = "right")
+```
+
+## Models
+
+### K-Means
+
+```{r}
+set.seed(300)
+k.max <- 12
+wss <- sapply(1:k.max,function(k){kmeans(centers_location$annual_prec_location,k,nstart = 50,iter.max = 5000)$tot.withinss})
+
+wss
+
+plot(1:k.max,wss, type= "b", xlab = "Number of clusters(k)", ylab = "Within cluster sum of squares")
+
+icluster <- kmeans(centers_location$annual_prec_location,4,nstart = 50)
+
+plotcluster(centers_location$annual_prec_location*1000, icluster$cluster, xlab = "Annual Precipitation (in mm)", ylab = "Cluster Number")
+
+icluster$centers
+table(icluster$cluster)
+
+plot_usmap(include = c("KY", "TN")) +
+  geom_point(data = prec_diff_centers_map, aes(x = LONGITUDE.1, y = LATITUDE.1), size = 4, magnitude = 1, color = icluster$cluster, alpha = 0.5) + 
+  labs(title = "Clusters based on Precipitation", subtitle = "All hospitals and urgent health care facilities in Kentucky and Tenessee") + 
+  theme(legend.position = "right")
+
+kmeans_clustered = data.frame(centers_location, K=icluster$cluster)
+```
+
+### Agglomerative Hierarchical Clustering
+
+```{r}
+annual_prec_location_scaled = as.data.frame(scale(centers_location$annual_prec_location))
+
+dist_mat <- dist(annual_prec_location_scaled, method = 'euclidean')
+
+hclust_avg <- hclust(dist_mat, method = 'complete')
+plot(hclust_avg, cex = 0.6, hang = -1)
+
+cut_avg <- cutree(hclust_avg, k = 4)
+rect.hclust(hclust_avg , k = 4, border = 2:5)
+
+suppressPackageStartupMessages(library(dendextend))
+
+dendogram = as.dendrogram(hclust_avg)
+dendogram_color = color_branches(dendogram, k=4)
+plot(dendogram_color)
+
+aggl_hier_clustered <- mutate(centers_location, cluster = cut_avg)
+
+table(aggl_hier_clustered$cluster)
+
+plot_usmap(include = c("KY", "TN")) +
+  geom_point(data = prec_diff_centers_map, aes(x = LONGITUDE.1, y = LATITUDE.1), size = 4, magnitude = 1, color = aggl_hier_clustered$cluster, alpha = 0.5) + 
+  labs(title = "Clusters based on Precipitation", subtitle = "All hospitals and urgent health care facilities in Kentucky and Tenessee") + 
+  theme(legend.position = "right")
+```
+
+### Comparison
+
+```{r}
+kmeans_clustered$level[kmeans_clustered$K == 3] = 1
+kmeans_clustered$level[kmeans_clustered$K == 4] = 2
+kmeans_clustered$level[kmeans_clustered$K == 2] = 3
+kmeans_clustered$level[kmeans_clustered$K == 1] = 4
+
+aggl_hier_clustered$level[aggl_hier_clustered$cluster == 4] = 1
+aggl_hier_clustered$level[aggl_hier_clustered$cluster == 3] = 2
+aggl_hier_clustered$level[aggl_hier_clustered$cluster == 2] = 3
+aggl_hier_clustered$level[aggl_hier_clustered$cluster == 1] = 4
+
+
+comparing = data.frame(km = kmeans_clustered$level,ahc = aggl_hier_clustered$level)
+comparing$diff = ifelse(comparing$km == comparing$ahc, 0,1)
+
+plotcluster(centers_location$annual_prec_location, kmeans_clustered$level)
+plotcluster(centers_location$annual_prec_location, aggl_hier_clustered$level)
+```
